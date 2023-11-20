@@ -19,15 +19,17 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module LCD_cursor(rst,clk,dip,LCD_E,LCD_RS,LCD_RW,LCD_DATA,LED_out,number_btn,control_btn);
-input rst,clk,dip;
+module LCD_cursor(rst,clk,dip2,LCD_E,LCD_RS,LCD_RW,LCD_DATA,LED_out,number_btn,control_btn);
+input rst,clk;
+input dip2;
 input [9:0] number_btn;
 input [1:0] control_btn;
 
 wire [9:0] number_btn_t;
 wire [1:0] control_btn_t;
+wire dip2_t;
 
-oneshot_universal #(.WIDTH(12)) O1(clk,rst,{number_btn[9:0],control_btn[1:0]},{number_btn_t[9:0],control_btn_t[1:0]});
+oneshot_universal #(.WIDTH(12)) O1(clk,rst,{number_btn[9:0],control_btn[1:0], dip2},{number_btn_t[9:0],control_btn_t[1:0], dip2_t});
 
 output LCD_E,LCD_RS,LCD_RW;
 output reg[7:0] LCD_DATA;
@@ -36,7 +38,7 @@ wire LCD_E;
 reg LCD_RS,LCD_RW;
 reg [7:0] cnt;
 reg [2:0] state;
-reg [6:0] cursor_pos; // 커서 위치를 추적하는 변수를 추가
+reg [3:0] cur_pos;
 parameter DELAY      =3'b000,
           FUNCTION_SET=3'b001,
           DISP_ONOFF  =3'b010,
@@ -75,7 +77,7 @@ begin
                 LED_out=8'b0000_1000;
             end
             DELAY_T:begin
-                state<=|number_btn_t?WRITE:(|control_btn_t?CURSOR:DELAY_T);
+                state <= |dip2_t ? SET_ADDRESS : (|dip2_t ? SET_ADDRESS : |number_btn_t ? WRITE : (|control_btn_t ? CURSOR : DELAY_T));
                 LED_out=8'b0000_0100;
             end
             WRITE:begin
@@ -127,15 +129,15 @@ end
 always @(posedge clk or negedge rst)
 begin
     if(!rst)
-        cursor_pos <= 0;  // reset 시에 커서 위치를 0으로 초기화
+        cur_pos <= 0;
     else
     begin
         if (state == WRITE && cnt == 20)
-            cursor_pos <= cursor_pos + 1;  // WRITE 상태에서 문자를 쓸 때마다 커서 위치를 1 증가
+            cur_pos <= cur_pos + 1;
         else if (state == CURSOR && cnt == 20)
             case(control_btn)
-                2'b10: cursor_pos <= cursor_pos - 1;  // CURSOR 상태에서 왼쪽으로 이동할 때 커서 위치를 1 감소
-                2'b01: cursor_pos <= cursor_pos + 1;  // CURSOR 상태에서 오른쪽으로 이동할 때 커서 위치를 1 증가
+                2'b10 : cur_pos <= cur_pos - 1;
+                2'b01 : cur_pos <= cur_pos + 1;
             endcase
     end
 end
@@ -154,7 +156,7 @@ begin
             ENTRY_MODE:
                 {LCD_RS,LCD_RW,LCD_DATA}=10'b0_0_0000_0110;
             SET_ADDRESS:
-                {LCD_RS,LCD_RW,LCD_DATA}=dip ? 10'b0_0_1100_0000 : 10'b0_0_1000_0000; // DIP switch 2번에 따라 라인 1 또는 라인 2로 커서 이동
+                {LCD_RS,LCD_RW,LCD_DATA}=dip2 ? 10'b0_0_1100_0000 : 10'b0_0_1000_0000;
             DELAY_T:
                 {LCD_RS,LCD_RW,LCD_DATA}=10'b0_0_0000_1111;
             WRITE:begin
@@ -176,10 +178,12 @@ begin
             end
             CURSOR:begin
                 if(cnt==20) begin
-                    if (cursor_pos == 15)  // 커서가 15 위치에 있을 때 오른쪽으로 이동하려면...
-                        {LCD_RS,LCD_RW,LCD_DATA} = 10'b0_0_1000_0000;  // 커서를 0 위치로 이동
-                    else if (cursor_pos == 55)  // 커서가 55 위치에 있을 때 오른쪽으로 이동하려면...
-                        {LCD_RS,LCD_RW,LCD_DATA} = 10'b0_0_1100_0000;  // 커서를 40 위치로 이동
+                    if (cur_pos == 15) begin
+                        case(dip2)
+                        0 : {LCD_RS,LCD_RW,LCD_DATA} = 10'b0_0_1000_0000;
+                        1 : {LCD_RS,LCD_RW,LCD_DATA} = 10'b0_0_1100_0000;
+                        endcase
+                    end
                     else
                         case(control_btn)
                             2'b10:{LCD_RS,LCD_RW,LCD_DATA}=10'b0_0_0001_0000; // left

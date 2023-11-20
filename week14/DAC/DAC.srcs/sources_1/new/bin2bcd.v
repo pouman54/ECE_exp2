@@ -3,7 +3,7 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 2023/11/20 01:44:44
+// Create Date: 2023/11/20 14:43:58
 // Design Name: 
 // Module Name: bin2bcd
 // Project Name: 
@@ -19,9 +19,9 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module bin2bcd(clk,rst,bin,bcd);
+module bin2bcd(clk,rst,dac_d,bcd);
 input clk,rst;
-input [3:0]bin;
+input [3:0]dac_d;
 output reg [7:0] bcd;
 
 always @(negedge rst or posedge clk) begin
@@ -29,7 +29,7 @@ always @(negedge rst or posedge clk) begin
         bcd<={4'd0,4'd0};
     end
     else begin
-        case(bin)
+        case(dac_d)
             0:bcd<={4'd0,4'd0};
             1:bcd<={4'd0,4'd1};
             2:bcd<={4'd0,4'd2};
