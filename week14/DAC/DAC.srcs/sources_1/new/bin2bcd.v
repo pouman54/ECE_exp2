@@ -19,35 +19,38 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
-module bin2bcd(clk,rst,dac_d,bcd);
+module bin2bcd(clk,rst,bin,bcd_out);
+
 input clk,rst;
-input [3:0]dac_d;
-output reg [7:0] bcd;
+input [7:0] bin;
+reg [11:0] bcd;
+output reg [11:0] bcd_out;
+
+reg[2:0] i;
 
 always @(negedge rst or posedge clk) begin
     if(!rst) begin
-        bcd<={4'd0,4'd0};
+        bcd<={4'd0,4'd0,4'd0};
+        i<=0;
     end
     else begin
-        case(dac_d)
-            0:bcd<={4'd0,4'd0};
-            1:bcd<={4'd0,4'd1};
-            2:bcd<={4'd0,4'd2};
-            3:bcd<={4'd0,4'd3};
-            4:bcd<={4'd0,4'd4};
-            5:bcd<={4'd0,4'd5};
-            6:bcd<={4'd0,4'd6};
-            7:bcd<={4'd0,4'd7};
-            8:bcd<={4'd0,4'd8};
-            9:bcd<={4'd0,4'd9};
-            10:bcd<={4'd1,4'd0};
-            11:bcd<={4'd1,4'd1};
-            12:bcd<={4'd1,4'd2};
-            13:bcd<={4'd1,4'd3};
-            14:bcd<={4'd1,4'd4};
-            15:bcd<={4'd1,4'd5};
-            default:bcd<={4'd0,4'd0};
-        endcase
+        if(i==0) begin
+            bcd[11:1]<=11'b0000_0000_000;
+            bcd[0]<=bin[7];
+        end
+        else begin
+            bcd[11:9]<=(bcd[11:8]>=3'd5) ? bcd[11:8]+2'd3:bcd[11:8];
+            bcd[8:5]<=(bcd[7:4]>=3'd5) ? bcd[7:4]+2'd3:bcd[7:4];
+            bcd[4:1]<=(bcd[3:0]>=3'd5) ? bcd[3:0]+2'd3:bcd[3:0];
+            bcd[0]<=bin[7-i];
+        end
+        i<=i+1;
     end
 end
+
+always @(negedge rst or posedge clk) begin
+    if(!rst) bcd_out<={4'd0,4'd0,4'd0};
+    else if(i==0) bcd_out<=bcd;
+end
+
 endmodule
